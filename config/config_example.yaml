@@ -1,0 +1,12 @@
+#### Project Path Setting
+# WORKSPACE_PATH: "Path for placing output files"
+
+#### 支持所有兼容OpenAI格式的供应商。该文件重命名为config.yaml,然后填入你自己的API。
+OPENAI_API_BASE: "YOUR URL"
+OPENAI_API_KEY: "YOUR API KEY"
+OPENAI_API_MODEL: "YOUR API MODEL"
+MAX_TOKENS: 1000
+RPM: 30
+TIMEOUT: 15 # Timeout for llm invocation
+#OPENAI_PROXY: "socks5h://127.0.0.1:7890" # 你的本地代理，翻墙用 
+#DEFAULT_PROVIDER: openai
