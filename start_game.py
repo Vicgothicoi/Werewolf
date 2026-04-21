@@ -21,7 +21,7 @@ def init_game_setup(
     if player_num == 4:
         roles = [Werewolf, Villager, Villager, Seer]
     elif player_num == 5:
-        roles = [Werewolf, Villager, Villager, Seer, Hunter]
+        roles = [Werewolf, Villager, Villager, Seer, Witch]
     elif player_num == 6:
         roles = [Werewolf, Werewolf, Villager, Villager, Seer, Witch]
     elif player_num == 7:
@@ -117,11 +117,11 @@ async def start_game(
 def main(
     investment: float = 20.0,
     n_round: int = 100,
-    player_num: int = 5,            # 玩家人数
-    add_human: bool = False,        # 是否将一个角色替换为人类
-    shuffle: bool = False,          # 是否打乱身份顺序
-    use_reflection: bool = True,    # 是否使用反思
-    use_experience: bool = False,   # 是否使用经验
+    player_num: int = 5,  # 玩家人数
+    add_human: bool = False,  # 是否将一个角色替换为人类
+    shuffle: bool = False,  # 是否打乱身份顺序
+    use_reflection: bool = True,  # 是否使用反思
+    use_experience: bool = False,  # 是否使用经验
     use_memory_selection: bool = False,
     new_experience_version: str = "",
 ):
@@ -142,4 +142,14 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    import sys
+
+    _indicator = 1
+
+    # if "--server" in sys.argv:
+    if _indicator == 1:
+        import uvicorn
+
+        uvicorn.run("werewolf_game.server:app", host="0.0.0.0", port=8000, reload=False)
+    else:
+        fire.Fire(main)

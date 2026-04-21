@@ -13,6 +13,7 @@ class Save(NighttimeWhispers):
         context: str,
         reflection: str,
         experiences: str,
+        **kwargs,
     ) -> dict:
         del prompt_json["ACTION"]
         del prompt_json["ATTENTION"]
@@ -49,6 +50,7 @@ class Poison(NighttimeWhispers):
         context: str,
         reflection: str,
         experiences: str,
+        **kwargs,
     ) -> dict:
         prompt_json["OUTPUT_FORMAT"][
             "RESPONSE"

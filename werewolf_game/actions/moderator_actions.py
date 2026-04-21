@@ -15,8 +15,8 @@ STEP_INSTRUCTIONS = {  # 字典
     },
     2: {
         "content": """Werewolves, I secretly tell you that {werewolf_players} are all of the werewolves! Keep in mind you are teammates. The rest players are not werewolves.
-                   choose one from the following living options please:
-                   {living_players}. For example: Kill ...""",
+choose one from the following living options please:
+{living_players}. For example: Kill ...""",
         "send_to": "Werewolf",
         "restricted_to": "Moderator,Werewolf",
     },
@@ -32,14 +32,14 @@ STEP_INSTRUCTIONS = {  # 字典
     },
     5: {
         "content": """Witch, tonight {player_killed} has been killed by the werewolves.
-                   You have a bottle of antidote, would you like to save him/her? If so, say "Save", else, say "Pass".""",
+You have a bottle of antidote, would you like to save him/her? If so, say "Save", else, say "Pass".""",
         "send_to": "Witch",
         "restricted_to": "Moderator,Witch",
     },  # 要先判断女巫是否有解药，再去询问女巫是否使用解药救人
     6: {
         "content": """Witch, you also have a bottle of poison, would you like to use it to kill one of the living players?
-                   Choose one from the following living options: {living_players}.
-                   If so, say ONLY "Poison PlayerX", replace PlayerX with the actual player name, else, say "Pass".""",
+Choose one from the following living options: {living_players}.
+If so, say ONLY "Poison PlayerX", replace PlayerX with the actual player name, else, say "Pass".""",
         "send_to": "Witch",
         "restricted_to": "Moderator,Witch",
     },
@@ -55,7 +55,7 @@ STEP_INSTRUCTIONS = {  # 字典
     },
     9: {
         "content": """Seer, you can check one player's identity. Who are you going to verify its identity tonight?
-                    Choose only one from the following living options:{living_players}.""",
+Choose only one from the following living options:{living_players}.""",
         "send_to": "Seer",
         "restricted_to": "Moderator,Seer",
     },
@@ -77,7 +77,7 @@ STEP_INSTRUCTIONS = {  # 字典
     },
     13: {
         "content": """You are killed , choose one player from the following living options to hunt please:
-                   {living_players}. For example: Hunt ...""",
+{living_players}. For example: Hunt ...""",
         "send_to": "Hunter",
         "restricted_to": "Moderator,Hunter",
     },
@@ -93,8 +93,8 @@ STEP_INSTRUCTIONS = {  # 字典
     },
     16: {
         "content": """Now vote and tell me who you think is the werewolf. Don’t mention your role.
-                    You only choose one from the following living options please:
-                    {living_players}. Say ONLY: I vote to eliminate ...""",
+You only choose one from the following living options please:
+{living_players}. Say ONLY: I vote to eliminate ...""",
         "send_to": "",
         "restricted_to": "",
     },
@@ -105,7 +105,7 @@ STEP_INSTRUCTIONS = {  # 字典
     },
     18: {
         "content": """You are eliminated, choose one player from the following living options to hunt please:
-                   {living_players}. For example: Hunt ...""",
+{living_players}. For example: Hunt ...""",
         "send_to": "Hunter",
         "restricted_to": "Moderator,Hunter",
     },

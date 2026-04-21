@@ -170,4 +170,10 @@ metagpt/roles/idea_agent.py
 # Ignore all dot-folders in root directory
 /.*/
 
+# Frontend
+node_modules/
+
+# Game records
+Game.txt
+
 

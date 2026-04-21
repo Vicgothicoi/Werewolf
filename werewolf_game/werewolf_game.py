@@ -14,12 +14,18 @@ class WerewolfEnvironment(Environment):
         """
         # self.message_queue.put(message)
         if add_timestamp:
-            # 因消息内容可能重复，例如，连续两晚杀同一个人，
-            # 因此需要加一个unique的time_stamp以使得相同的message在加入记忆时不被自动去重
+            # 一个unique的time_stamp以使得相同的message在加入记忆时不被自动去重
             message.content = f"{self.timestamp} | " + message.content
-        # print("测试：",message.content)
         self.memory.add(message)
         self.history += f"\n{message}"
+
+        # 推送消息到 WebSocket 客户端
+        try:
+            from werewolf_game.server import broadcast
+            
+            broadcast(message)
+        except Exception:
+            pass  
 
     async def run(self, k=1):
         """处理一次(k=1即为一次)所有信息的运行，单协程保证各角色顺序执行（await 只是让出给系统：不会让其他角色插队）

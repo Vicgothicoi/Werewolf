@@ -36,6 +36,7 @@ PAST_EXPERIENCES：
 ### 本项目没有的Agent技术概念
 MCP；  
 Skill 渐进式披露  
+本项目虽然使用了Function Calling，但是只是用来模拟Structured Output的功能，这是考虑到后者有一些模型并不支持  
 
 ### 前后端
 实现中

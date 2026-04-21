@@ -101,10 +101,11 @@ class Moderator(Role):
         abs_idx = self.step_idx
         step_idx = abs_idx % n
 
-        # 跳过 Hunter 步骤：当局没有 Hunter，或死亡玩家中没有 Hunter
-        if (
-            step_idx == 13 or step_idx == 18
-        ) and self.hunter_players != self.player_current_dead:
+        # 跳过 Hunter 步骤：场上没有 Hunter，或本轮死亡玩家中没有 Hunter
+        has_hunter_died = any(
+            p in self.player_current_dead for p in self.hunter_players
+        )
+        if (step_idx == 13 or step_idx == 18) and not has_hunter_died:
             abs_idx += 2
             step_idx = abs_idx % n
 
