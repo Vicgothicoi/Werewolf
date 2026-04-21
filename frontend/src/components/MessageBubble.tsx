@@ -1,9 +1,22 @@
+import { useState } from "react";
 import type { GameMessage } from "../types";
 
 // 角色 → 阵营
 const WEREWOLF_ROLES = ["Werewolf"];
 const SPECIAL_ROLES = ["Seer", "Witch", "Hunter", "Guard"];
 const MODERATOR_ROLES = ["Moderator", "User"];
+
+// 角色名 → 图片路径（放在 public/avatars/ 下）
+const AVATAR_MAP: Record<string, string> = {
+    Werewolf: "/avatars/werewolf.jpg",
+    Villager: "/avatars/villager.jpg",
+    Seer: "/avatars/seer.jpg",
+    Witch: "/avatars/witch.jpg",
+    Hunter: "/avatars/hunter.jpg",
+    Guard: "/avatars/guard.jpg",
+    Moderator: "/avatars/moderator.jpg",
+    User: "/avatars/moderator.jpg",
+};
 
 function getRoleStyle(role: string): {
     border: string;
@@ -64,15 +77,28 @@ export default function MessageBubble({ message, isTyping = false }: Props) {
     const style = getRoleStyle(role);
     const displayContent = stripTimestamp(content);
     const avatarLabel = getAvatarLabel(sent_from || role);
+    const avatarSrc = AVATAR_MAP[role];
+
+    // 图片加载失败时回退到纯色文字头像
+    const [imgFailed, setImgFailed] = useState(false);
 
     return (
         <div className={`flex gap-3 py-2 ${isPrivate ? "opacity-75" : ""}`}>
-            {/* 头像 */}
-            <div
-                className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold ${style.avatar}`}
-            >
-                {avatarLabel}
-            </div>
+            {/* 头像：优先显示角色图片，失败时回退到纯色缩写 */}
+            {avatarSrc && !imgFailed ? (
+                <img
+                    src={avatarSrc}
+                    alt={role}
+                    className="flex-shrink-0 w-9 h-9 rounded-full object-cover"
+                    onError={() => setImgFailed(true)}
+                />
+            ) : (
+                <div
+                    className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold ${style.avatar}`}
+                >
+                    {avatarLabel}
+                </div>
+            )}
 
             {/* 消息主体 */}
             <div className="flex-1 min-w-0">

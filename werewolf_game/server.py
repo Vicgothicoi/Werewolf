@@ -39,6 +39,16 @@ def broadcast(message: Message):
         pass  # 没有运行中的事件循环时静默跳过
 
 
+def broadcast_game_over():
+    """游戏结束时推送特殊事件，通知前端重置状态。"""
+    data = json.dumps({"type": "game_over"}, ensure_ascii=False)
+    try:
+        loop = asyncio.get_event_loop()
+        loop.create_task(_broadcast_async(data))
+    except RuntimeError:
+        pass
+
+
 async def _broadcast_async(data: str):
     """异步广播，逐一发送给所有客户端，断开的客户端自动移除。"""
     for ws in _clients.copy():

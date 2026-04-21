@@ -48,7 +48,7 @@ def init_game_setup(
             Villager,
             Villager,
             Villager,
-            Villager,
+            Guard,
             Hunter,
             Seer,
             Witch,
@@ -117,7 +117,7 @@ async def start_game(
 def main(
     investment: float = 20.0,
     n_round: int = 100,
-    player_num: int = 5,  # 玩家人数
+    player_num: int = 4,  # 玩家人数
     add_human: bool = False,  # 是否将一个角色替换为人类
     shuffle: bool = False,  # 是否打乱身份顺序
     use_reflection: bool = True,  # 是否使用反思

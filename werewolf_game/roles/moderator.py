@@ -134,10 +134,8 @@ class Moderator(Role):
         latest_msg = memories[-1]
         latest_msg_content = latest_msg.content
 
-        match = re.search(
-            r"Player[0-9]+", latest_msg_content[-10:]
-        )  # FIXME: hard code truncation
-        target = match.group(0) if match else ""  # 获取匹配表达式
+        match = re.search(r"Player[0-9]+", latest_msg_content)
+        target = match.group(0) if match else ""
 
         # default return
         msg_content = "Understood"
@@ -216,19 +214,19 @@ class Moderator(Role):
             self.is_killed_player_saved = False
             self.player_poisoned = None
 
-        elif step_idx == 17:  # FIXME: hard code
+        elif step_idx == 17:
             # day ends: after all roles voted, process all votings
-            voting_msgs = memories[-len(self.living_players) :]
+            voting_msgs = memories[-(len(self.living_players) + 1) :]
             voted_all = []
             for msg in voting_msgs:
-                voted = re.search(r"Player[0-9]+", msg.content[-10:])
+                voted = re.search(r"Player[0-9]+", msg.content)
                 if not voted:
                     continue
                 voted_all.append(voted.group(0))
+            vote_count = Counter(voted_all)
             self.player_current_dead = [
-                Counter(voted_all).most_common()[0][0]
+                max(vote_count, key=lambda p: (vote_count[p], -voted_all.index(p)))
             ]  # 平票时，杀最先被投的
-            # print("*" * 10, "dead", self.player_current_dead)
             self.living_players = [
                 p for p in self.living_players if p not in self.player_current_dead
             ]

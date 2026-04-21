@@ -119,7 +119,25 @@ export function useGameSocket(): UseGameSocketReturn {
 
         ws.onmessage = (event: MessageEvent) => {
             try {
-                const msg = JSON.parse(event.data as string) as GameMessage;
+                const data = JSON.parse(event.data as string);
+
+                // 游戏结束事件：重置运行状态
+                if (data.type === "game_over") {
+                    // 等队列和逐字输出都完成后再关闭 isRunning
+                    // 用轮询检查，避免在消息还没显示完时就隐藏等待指示器
+                    const waitForFlush = () => {
+                        if (isFlushingRef.current || typingIntervalRef.current) {
+                            setTimeout(waitForFlush, 200);
+                        } else {
+                            setIsRunning(false);
+                            setIsWaiting(false);
+                        }
+                    };
+                    waitForFlush();
+                    return;
+                }
+
+                const msg = data as GameMessage;
                 enqueue(msg);
             } catch {
                 // 忽略非 JSON 消息

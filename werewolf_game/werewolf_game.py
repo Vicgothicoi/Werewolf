@@ -21,11 +21,16 @@ class WerewolfEnvironment(Environment):
 
         # 推送消息到 WebSocket 客户端
         try:
-            from werewolf_game.server import broadcast
-            
+            from werewolf_game.server import broadcast, broadcast_game_over
+            from werewolf_game.actions.moderator_actions import AnnounceGameResult
+
             broadcast(message)
+
+            # 游戏结束消息发布后，额外推送 game_over 事件
+            if message.cause_by == AnnounceGameResult:
+                broadcast_game_over()
         except Exception:
-            pass  
+            pass
 
     async def run(self, k=1):
         """处理一次(k=1即为一次)所有信息的运行，单协程保证各角色顺序执行（await 只是让出给系统：不会让其他角色插队）

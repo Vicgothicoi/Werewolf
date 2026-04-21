@@ -2,24 +2,38 @@ import json
 import os
 import glob
 
+# 强制离线模式，禁止 HuggingFace 尝试联网
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
+
 import numpy as np
 import chromadb
-from chromadb.utils import embedding_functions
+from sentence_transformers import SentenceTransformer
 
-from metagpt.config import CONFIG
 from metagpt.actions import Action
 from metagpt.const import WORKSPACE_ROOT
 from metagpt.logs import logger
 from werewolf_game.schema import RoleExperience
 
-DEFAULT_COLLECTION_NAME = "role_reflection"  # FIXME: some hard code for now
-EMB_FN = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=CONFIG.openai_api_key,
-    api_base=CONFIG.openai_api_base,
-    api_type=CONFIG.openai_api_type,
-    model_name="text-embedding-ada-002",
-    api_version="2020-11-07",
-)
+DEFAULT_COLLECTION_NAME = "role_reflection"  # FIXME: 使用本地模型，原先的在线模型不兼容其他API
+
+# 使用本地 bge-m3 模型，离线加载（该模型较大，可以选择其他轻量模型）
+_EMBED_MODEL = SentenceTransformer("BAAI/bge-m3")
+
+
+def _embed_texts(texts: list[str]) -> list[list[float]]:
+    """调用本地 bge-m3 对文本列表编码，返回归一化向量列表。"""
+    vectors = _EMBED_MODEL.encode(texts, normalize_embeddings=True)
+    return vectors.tolist()
+
+
+# ChromaDB 自定义 embedding function 接口
+class _LocalEmbeddingFunction:
+    def __call__(self, input: list[str]) -> list[list[float]]:
+        return _embed_texts(input)
+
+
+EMB_FN = _LocalEmbeddingFunction()
 
 
 def embed_hard_facts(hard_facts_str: str) -> list[float]:
@@ -183,8 +197,7 @@ class RetrieveExperiences(Action):
             # 运算符 $and：同时满足；$ne：不等于
             filters = {
                 "$and": [{"profile": profile}, {"version": {"$ne": excluded_version}}]
-            }  # 不用同一版本的经验，只用之前的
-        #################
+            }
 
         # 对query的hard_facts独立编码后平均池化，与存储时保持一致
         query_embedding = embed_hard_facts(query)
