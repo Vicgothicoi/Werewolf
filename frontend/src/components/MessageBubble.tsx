@@ -44,7 +44,7 @@ function getRoleStyle(role: string): {
             avatar: "bg-blue-500",
         };
     }
-    // 村民
+    // 村民 or 身份未知
     return {
         border: "border-green-400",
         badge: "bg-green-100 text-green-700",
@@ -69,15 +69,25 @@ function getAvatarLabel(sentFrom: string): string {
 interface Props {
     message: GameMessage;
     isTyping?: boolean;
+    humanRole?: string | null; // 人类玩家的 role，非 null 时隐藏其他玩家真实身份
 }
 
-export default function MessageBubble({ message, isTyping = false }: Props) {
+export default function MessageBubble({ message, isTyping = false, humanRole = null }: Props) {
     const { sent_from, role, content, restricted_to } = message;
     const isPrivate = restricted_to !== "";
-    const style = getRoleStyle(role);
+    const isHumanPlayer = humanRole !== null && role === humanRole;
+    const isModerator = MODERATOR_ROLES.includes(role);
+
+    // 非主持人、非人类玩家自己 → 隐藏真实身份
+    const displayRole = (humanRole && !isHumanPlayer && !isModerator) ? "???" : role;
+    const style = getRoleStyle(isHumanPlayer || isModerator ? role : "Unknown");
     const displayContent = stripTimestamp(content);
     const avatarLabel = getAvatarLabel(sent_from || role);
-    const avatarSrc = AVATAR_MAP[role];
+
+    // 头像：人类玩家和主持人显示真实图片，其他玩家显示问号头像
+    const avatarSrc = (isHumanPlayer || isModerator || !humanRole)
+        ? AVATAR_MAP[role]
+        : "/avatars/unknown.jpg";
 
     // 图片加载失败时回退到纯色文字头像
     const [imgFailed, setImgFailed] = useState(false);
@@ -110,7 +120,7 @@ export default function MessageBubble({ message, isTyping = false }: Props) {
                     <span
                         className={`text-xs px-1.5 py-0.5 rounded font-medium ${style.badge}`}
                     >
-                        {role}
+                        {displayRole}
                     </span>
                     {isPrivate && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 font-medium">

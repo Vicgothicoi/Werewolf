@@ -96,18 +96,30 @@ async def start_game(
     use_experience: bool = False,
     use_memory_selection: bool = False,
     new_experience_version: str = "",
+    # server 模式下由 start_game_endpoint 预先初始化并传入，避免二次随机
+    _game_setup: str | None = None,
+    _players: list | None = None,
 ):
     game = WerewolfGame()
-    game_setup, players = init_game_setup(
-        player_num=player_num,
-        shuffle=shuffle,
-        add_human=add_human,
-        use_reflection=use_reflection,
-        use_experience=use_experience,
-        use_memory_selection=use_memory_selection,
-        new_experience_version=new_experience_version,
-    )
+
+    if _game_setup is not None and _players is not None:
+        # server 模式：直接使用外部传入的初始化结果
+        game_setup = _game_setup
+        players = _players
+    else:
+        # 命令行模式：自行初始化
+        game_setup, players = init_game_setup(
+            player_num=player_num,
+            shuffle=shuffle,
+            add_human=add_human,
+            use_reflection=use_reflection,
+            use_experience=use_experience,
+            use_memory_selection=use_memory_selection,
+            new_experience_version=new_experience_version,
+        )
+
     players = [Moderator()] + players
+
     game.hire(players)
     game.invest(investment)
     game.start_project(game_setup)
@@ -118,7 +130,7 @@ def main(
     investment: float = 20.0,
     n_round: int = 100,
     player_num: int = 4,  # 玩家人数
-    add_human: bool = False,  # 是否将一个角色替换为人类
+    add_human: bool = True,  # 是否将一个角色替换为人类
     shuffle: bool = False,  # 是否打乱身份顺序
     use_reflection: bool = True,  # 是否使用反思
     use_experience: bool = False,  # 是否使用经验
@@ -145,11 +157,11 @@ if __name__ == "__main__":
     import sys
 
     _indicator = 1
-
-    # if "--server" in sys.argv:
     if _indicator == 1:
         import uvicorn
+        import werewolf_game.server as _srv
 
+        _srv.IS_SERVER_MODE = True
         uvicorn.run("werewolf_game.server:app", host="0.0.0.0", port=8000, reload=False)
     else:
         fire.Fire(main)

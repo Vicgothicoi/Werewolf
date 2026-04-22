@@ -26,9 +26,10 @@ interface Props {
     messages: GameMessage[];
     isWaiting: boolean;
     isTyping: boolean;
+    humanRole?: string | null;
 }
 
-export default function MessageList({ messages, isWaiting, isTyping }: Props) {
+export default function MessageList({ messages, isWaiting, isTyping, humanRole = null }: Props) {
     const bottomRef = useRef<HTMLDivElement>(null);
 
     // 新消息到来时自动滚动到底部
@@ -71,6 +72,7 @@ export default function MessageList({ messages, isWaiting, isTyping }: Props) {
                 key={`msg-${idx}`}
                 message={msg}
                 isTyping={isTyping && idx === messages.length - 1}
+                humanRole={humanRole}
             />
         );
     });

@@ -1,9 +1,9 @@
 import { useGameSocket } from "./hooks/useGameSocket";
 import MessageList from "./components/MessageList";
 import GameControls from "./components/GameControls";
+import HumanInput from "./components/HumanInput";
 import type { GameParams } from "./components/GameControls";
 
-// 连接状态指示点
 const STATUS_DOT: Record<string, string> = {
     connected: "bg-green-400",
     connecting: "bg-yellow-400 animate-pulse",
@@ -17,7 +17,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function App() {
-    const { messages, status, isRunning, isWaiting, isTyping, startGame } = useGameSocket();
+    const {
+        messages, status, isRunning, isWaiting, isTyping,
+        awaitInputInstruction, humanRole,
+        startGame, sendInput,
+    } = useGameSocket();
 
     const handleStart = async (params: GameParams) => {
         try {
@@ -33,10 +37,11 @@ export default function App() {
             <header className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-200 shadow-sm">
                 <div className="flex items-center gap-2">
                     <span className="text-xl">🐺</span>
-                    <h1 className="text-base font-semibold text-gray-900">狼人杀 · 观战</h1>
+                    <h1 className="text-base font-semibold text-gray-900">
+                        {humanRole ? `狼人杀 · ${humanRole}` : "狼人杀 · 观战"}
+                    </h1>
                 </div>
 
-                {/* 连接状态 */}
                 <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
                     <span className="text-xs text-gray-500">{STATUS_LABEL[status]}</span>
@@ -49,14 +54,26 @@ export default function App() {
             </header>
 
             {/* 消息区域 */}
-            <MessageList messages={messages} isWaiting={isWaiting} isTyping={isTyping} />
-
-            {/* 底部控制栏 */}
-            <GameControls
-                onStart={handleStart}
-                isRunning={isRunning}
-                isConnected={status === "connected"}
+            <MessageList
+                messages={messages}
+                isWaiting={isWaiting && !awaitInputInstruction}
+                isTyping={isTyping}
+                humanRole={humanRole}
             />
+
+            {/* 人类玩家输入框（等待输入时显示，覆盖底部控制栏） */}
+            {awaitInputInstruction ? (
+                <HumanInput
+                    instruction={awaitInputInstruction}
+                    onSubmit={sendInput}
+                />
+            ) : (
+                <GameControls
+                    onStart={handleStart}
+                    isRunning={isRunning}
+                    isConnected={status === "connected"}
+                />
+            )}
         </div>
     );
 }

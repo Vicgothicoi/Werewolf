@@ -5,3 +5,9 @@ export interface GameMessage {
     content: string;     // 消息内容，带时间戳前缀，例如 "2 | Kill Player2"
     restricted_to: string; // 私密消息接收方，公开消息为空字符串 ""
 }
+
+// server.py 推送的特殊事件
+export interface AwaitInputEvent {
+    type: "await_input";
+    instruction: string; // 提示人类玩家输入的说明文字
+}

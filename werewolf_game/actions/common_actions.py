@@ -188,8 +188,9 @@ class Speak(Action):
         # 通过 Function Calling 强制结构化输出
         rsp_dict = await self._aask_tool(prompt, [SPEAK_TOOL], "submit_speak")
 
-        # print("测试Speak", prompt)
-        # logger.info(json.dumps(rsp_dict, indent=2))
+        print("--------------------思维链--------------------")
+        print(rsp_dict["thoughts"])
+        print("----------------------------------------------")
 
         return rsp_dict["response"]
 
@@ -252,7 +253,6 @@ class NighttimeWhispers(Action):
 
             return prompt_json
 
-        # print("测试",prompt_template)
         # 将一个符合JSON语法的字符串解析为一个Python字典对象
         prompt_json: dict = json.loads(prompt_template)
 
@@ -312,8 +312,9 @@ class NighttimeWhispers(Action):
             prompt, [NIGHTTIME_TOOL], "submit_night_action"
         )
 
-        # print("测试NighttimeWhispers", prompt)
-        # logger.info(json.dumps(rsp_dict, indent=2))
+        print("--------------------思维链--------------------")
+        print(rsp_dict["thoughts"])
+        print("----------------------------------------------")
         return f"{self.name} " + rsp_dict["response"]
 
 
@@ -340,7 +341,7 @@ class Reflect(Action):
                             ,{...}
                             ,...
                         ]"
-        ,"REFLECTION": "Based on `HARD_FACTS` and `SOFT_SIGNALS`, return a json (return an empty string for the first night):
+        ,"REFLECTION": "Based on `HARD_FACTS` and `SOFT_SIGNALS`, return a json:
                        {
                             "PlayerX(replace X with the player you will analyze)": "the true role (werewolf / special role / villager, living or dead) you infer about him/her, and why is this role? If the player is yourself or your werewolf partner, indicate it."
                             ,...
@@ -382,8 +383,10 @@ class Reflect(Action):
         # 通过 Function Calling 强制结构化输出
         rsp_dict = await self._aask_tool(prompt, [REFLECT_TOOL], "submit_reflection")
 
-        # print("测试Reflect", prompt)
-        # logger.info(json.dumps(rsp_dict, indent=2))
+        print("--------------------反思结果--------------------")
+        for k, v in json.loads(rsp_dict["reflection"]).items():
+            print(f"{k}: {v}")
+        print("-----------------------------------------------")
 
         return (
             rsp_dict["hard_facts"],

@@ -10,25 +10,8 @@ from __future__ import annotations
 import importlib
 from typing import Callable, Coroutine, Literal, overload
 
-from semantic_kernel.skill_definition import sk_function
-
 from metagpt.config import CONFIG
 from metagpt.tools import SearchEngineType
-
-
-class SkSearchEngine:
-    def __init__(self):
-        self.search_engine = SearchEngine()
-
-    @sk_function(
-        description="searches results from Google. Useful when you need to find short "
-        "and succinct answers about a specific topic. Input should be a search query.",
-        name="searchAsync",
-        input_description="search",
-    )
-    async def run(self, query: str) -> str:
-        result = await self.search_engine.run(query)
-        return result
 
 
 class SearchEngine:
@@ -46,7 +29,9 @@ class SearchEngine:
     def __init__(
         self,
         engine: SearchEngineType | None = None,
-        run_func: Callable[[str, int, bool], Coroutine[None, None, str | list[str]]] = None,
+        run_func: Callable[
+            [str, int, bool], Coroutine[None, None, str | list[str]]
+        ] = None,
     ):
         engine = engine or CONFIG.search_engine
         if engine == SearchEngineType.SERPAPI_GOOGLE:
@@ -74,8 +59,7 @@ class SearchEngine:
         query: str,
         max_results: int = 8,
         as_string: Literal[True] = True,
-    ) -> str:
-        ...
+    ) -> str: ...
 
     @overload
     def run(
@@ -83,10 +67,11 @@ class SearchEngine:
         query: str,
         max_results: int = 8,
         as_string: Literal[False] = False,
-    ) -> list[dict[str, str]]:
-        ...
+    ) -> list[dict[str, str]]: ...
 
-    async def run(self, query: str, max_results: int = 8, as_string: bool = True) -> str | list[dict[str, str]]:
+    async def run(
+        self, query: str, max_results: int = 8, as_string: bool = True
+    ) -> str | list[dict[str, str]]:
         """Run a search query.
 
         Args:

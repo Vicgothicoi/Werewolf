@@ -5,6 +5,7 @@ export type GameParams = {
     shuffle: boolean;
     use_reflection: boolean;
     use_experience: boolean;
+    add_human: boolean;
 };
 
 interface Props {
@@ -19,6 +20,7 @@ export default function GameControls({ onStart, isRunning, isConnected }: Props)
         shuffle: true,
         use_reflection: true,
         use_experience: false,
+        add_human: false,
     });
 
     const handleStart = () => {
@@ -53,6 +55,7 @@ export default function GameControls({ onStart, isRunning, isConnected }: Props)
                     { key: "shuffle", label: "随机身份" },
                     { key: "use_reflection", label: "反思" },
                     { key: "use_experience", label: "经验" },
+                    { key: "add_human", label: "加入人类玩家" },
                 ] as { key: keyof GameParams; label: string }[]
             ).map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-1.5 cursor-pointer">

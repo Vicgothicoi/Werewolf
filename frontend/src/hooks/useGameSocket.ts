@@ -13,9 +13,12 @@ interface UseGameSocketReturn {
     messages: GameMessage[];
     status: ConnectionStatus;
     isRunning: boolean;
-    isWaiting: boolean;  // 队列已空但游戏仍在进行，显示等待指示器
-    isTyping: boolean;   // 当前正在逐字输出最后一条消息
+    isWaiting: boolean;
+    isTyping: boolean;
+    awaitInputInstruction: string | null; // 非 null 时表示正在等待人类输入
+    humanRole: string | null;             // 人类玩家的 role，用于隐藏其他玩家身份
     startGame: (params: GameParams) => Promise<void>;
+    sendInput: (text: string) => void;    // 发送人类玩家输入
     clearMessages: () => void;
 }
 
@@ -25,6 +28,8 @@ export function useGameSocket(): UseGameSocketReturn {
     const [isRunning, setIsRunning] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+    const [awaitInputInstruction, setAwaitInputInstruction] = useState<string | null>(null);
+    const [humanRole, setHumanRole] = useState<string | null>(null);
 
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,19 +126,32 @@ export function useGameSocket(): UseGameSocketReturn {
             try {
                 const data = JSON.parse(event.data as string);
 
-                // 游戏结束事件：重置运行状态
+                // 游戏结束事件
                 if (data.type === "game_over") {
-                    // 等队列和逐字输出都完成后再关闭 isRunning
-                    // 用轮询检查，避免在消息还没显示完时就隐藏等待指示器
                     const waitForFlush = () => {
                         if (isFlushingRef.current || typingIntervalRef.current) {
                             setTimeout(waitForFlush, 200);
                         } else {
                             setIsRunning(false);
                             setIsWaiting(false);
+                            setAwaitInputInstruction(null);
+                            setHumanRole(null);
                         }
                     };
                     waitForFlush();
+                    return;
+                }
+
+                // player_info：后端主动告知人类玩家身份
+                if (data.type === "player_info") {
+                    setHumanRole(data.profile as string);
+                    return;
+                }
+
+                // 等待人类输入事件：暂停等待指示器，显示输入框
+                if (data.type === "await_input") {
+                    setIsWaiting(false);
+                    setAwaitInputInstruction(data.instruction as string);
                     return;
                 }
 
@@ -149,6 +167,7 @@ export function useGameSocket(): UseGameSocketReturn {
             setIsRunning(false);
             setIsWaiting(false);
             setIsTyping(false);
+            setAwaitInputInstruction(null);
             if (typingIntervalRef.current) {
                 clearInterval(typingIntervalRef.current);
                 typingIntervalRef.current = null;
@@ -189,6 +208,7 @@ export function useGameSocket(): UseGameSocketReturn {
             shuffle: String(params.shuffle),
             use_reflection: String(params.use_reflection),
             use_experience: String(params.use_experience),
+            add_human: String(params.add_human),
         });
 
         const res = await fetch(`${API_URL}/game/start?${query}`, {
@@ -210,7 +230,17 @@ export function useGameSocket(): UseGameSocketReturn {
         setMessages([]);
         setIsWaiting(false);
         setIsTyping(false);
+        setAwaitInputInstruction(null);
+        // humanRole 不在这里重置，由 player_info 事件设置，避免覆盖已收到的值
         setIsRunning(true);
+    }, []);
+
+    // 发送人类玩家输入，通过 WebSocket 传给后端
+    const sendInput = useCallback((text: string) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(text);
+            setAwaitInputInstruction(null); // 关闭输入框
+        }
     }, []);
 
     const clearMessages = useCallback(() => {
@@ -223,7 +253,12 @@ export function useGameSocket(): UseGameSocketReturn {
         setMessages([]);
         setIsWaiting(false);
         setIsTyping(false);
+        setAwaitInputInstruction(null);
     }, []);
 
-    return { messages, status, isRunning, isWaiting, isTyping, startGame, clearMessages };
+    return {
+        messages, status, isRunning, isWaiting, isTyping,
+        awaitInputInstruction, humanRole,
+        startGame, sendInput, clearMessages,
+    };
 }
