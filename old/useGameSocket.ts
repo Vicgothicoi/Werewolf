@@ -4,8 +4,8 @@ import type { GameParams } from "../components/GameControls";
 
 const WS_URL = "ws://localhost:8000/ws";
 const API_URL = "http://localhost:8000";
-const MSG_INTERVAL_MS = 2000;
-const TYPING_SPEED_MS = 30;
+const MSG_INTERVAL_MS = 2000;  // 消息间最小间隔
+const TYPING_SPEED_MS = 30;    // 每个字符的间隔（毫秒）
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
@@ -15,15 +15,10 @@ interface UseGameSocketReturn {
     isRunning: boolean;
     isWaiting: boolean;
     isTyping: boolean;
-    awaitInputInstruction: string | null;
-    humanRole: string | null;
-    currentGameId: string | null;
-    historyMessages: GameMessage[];
-    viewingGameId: string | null;
+    awaitInputInstruction: string | null; // 非 null 时表示正在等待人类输入
+    humanRole: string | null;             // 人类玩家的 role，用于隐藏其他玩家身份
     startGame: (params: GameParams) => Promise<void>;
-    sendInput: (text: string) => void;
-    viewGame: (gameId: string) => Promise<void>;
-    exitHistory: () => void;
+    sendInput: (text: string) => void;    // 发送人类玩家输入
     clearMessages: () => void;
 }
 
@@ -35,28 +30,28 @@ export function useGameSocket(): UseGameSocketReturn {
     const [isTyping, setIsTyping] = useState(false);
     const [awaitInputInstruction, setAwaitInputInstruction] = useState<string | null>(null);
     const [humanRole, setHumanRole] = useState<string | null>(null);
-    const [currentGameId, setCurrentGameId] = useState<string | null>(null);
-    const [historyMessages, setHistoryMessages] = useState<GameMessage[]>([]);
-    const [viewingGameId, setViewingGameId] = useState<string | null>(null);
 
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // 待显示的消息队列（收到但还没开始输出的）
     const queueRef = useRef<GameMessage[]>([]);
+    // 是否正在执行出队/逐字输出，避免重复启动
     const isFlushingRef = useRef(false);
+    // 上一条消息开始显示的时间戳（用于计算下一条的延迟）
     const lastShownAtRef = useRef<number>(0);
+    // 当前逐字输出的 interval id，用于清理
     const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // 用 ref 持有 onmessage 处理函数，让 connect 的依赖数组可以为 []
-    // 每次渲染后更新 ref，确保 onmessage 始终使用最新的 enqueue 等函数
-    const onMessageRef = useRef<(event: MessageEvent) => void>(() => { });
-
-    // ── 消息队列逻辑（不参与 connect 的依赖链）────────────────────
-
+    // 逐字展开一条消息，完成后调用 onDone
     const typeMessage = useCallback((msg: GameMessage, onDone: () => void) => {
         const fullText = msg.content;
         let charIdx = 0;
+
+        // 先 push 一条空内容的占位消息
         setMessages((prev) => [...prev, { ...msg, content: "" }]);
         setIsTyping(true);
+
         typingIntervalRef.current = setInterval(() => {
             charIdx += 1;
             setMessages((prev) => {
@@ -64,6 +59,7 @@ export function useGameSocket(): UseGameSocketReturn {
                 next[next.length - 1] = { ...msg, content: fullText.slice(0, charIdx) };
                 return next;
             });
+
             if (charIdx >= fullText.length) {
                 clearInterval(typingIntervalRef.current!);
                 typingIntervalRef.current = null;
@@ -73,19 +69,27 @@ export function useGameSocket(): UseGameSocketReturn {
         }, TYPING_SPEED_MS);
     }, []);
 
+    // 从队列里逐条取出消息，每条之间至少间隔 MSG_INTERVAL_MS
     const flushQueue = useCallback(() => {
         if (queueRef.current.length === 0) {
             isFlushingRef.current = false;
             return;
         }
+
         const now = Date.now();
         const elapsed = now - lastShownAtRef.current;
         const delay = Math.max(0, MSG_INTERVAL_MS - elapsed);
+
         setTimeout(() => {
             const msg = queueRef.current.shift();
-            if (!msg) { isFlushingRef.current = false; return; }
+            if (!msg) {
+                isFlushingRef.current = false;
+                return;
+            }
             lastShownAtRef.current = Date.now();
             setIsWaiting(false);
+
+            // 逐字输出，完成后再处理下一条
             typeMessage(msg, () => {
                 lastShownAtRef.current = Date.now();
                 flushQueue();
@@ -93,55 +97,15 @@ export function useGameSocket(): UseGameSocketReturn {
         }, delay);
     }, [typeMessage]);
 
+    // 收到新消息时入队，并在没有 flush 进行时启动 flush
     const enqueue = useCallback((msg: GameMessage) => {
         queueRef.current.push(msg);
-        setIsWaiting(false);
+        setIsWaiting(false); // 有新消息进来，取消等待状态
         if (!isFlushingRef.current) {
             isFlushingRef.current = true;
             flushQueue();
         }
     }, [flushQueue]);
-
-    // 每次渲染后把最新的 onmessage 处理逻辑同步到 ref
-    useEffect(() => {
-        onMessageRef.current = (event: MessageEvent) => {
-            try {
-                const data = JSON.parse(event.data as string);
-
-                if (data.type === "game_over") {
-                    const waitForFlush = () => {
-                        if (isFlushingRef.current || typingIntervalRef.current) {
-                            setTimeout(waitForFlush, 200);
-                        } else {
-                            setIsRunning(false);
-                            setIsWaiting(false);
-                            setAwaitInputInstruction(null);
-                            setHumanRole(null);
-                        }
-                    };
-                    waitForFlush();
-                    return;
-                }
-
-                if (data.type === "player_info") {
-                    setHumanRole(data.profile as string);
-                    return;
-                }
-
-                if (data.type === "await_input") {
-                    setIsWaiting(false);
-                    setAwaitInputInstruction(data.instruction as string);
-                    return;
-                }
-
-                enqueue(data as GameMessage);
-            } catch {
-                // 忽略非 JSON 消息
-            }
-        };
-    }); // 无依赖数组：每次渲染都更新
-
-    // ── WebSocket 连接（依赖数组为 []，永不重建）─────────────────
 
     const connect = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -158,15 +122,52 @@ export function useGameSocket(): UseGameSocketReturn {
             }
         };
 
-        // 通过 ref 间接调用，始终使用最新版本，不产生依赖
         ws.onmessage = (event: MessageEvent) => {
-            onMessageRef.current(event);
+            try {
+                const data = JSON.parse(event.data as string);
+
+                // 游戏结束事件
+                if (data.type === "game_over") {
+                    const waitForFlush = () => {
+                        if (isFlushingRef.current || typingIntervalRef.current) {
+                            setTimeout(waitForFlush, 200);
+                        } else {
+                            setIsRunning(false);
+                            setIsWaiting(false);
+                            setAwaitInputInstruction(null);
+                            setHumanRole(null);
+                        }
+                    };
+                    waitForFlush();
+                    return;
+                }
+
+                // player_info：后端主动告知人类玩家身份
+                if (data.type === "player_info") {
+                    setHumanRole(data.profile as string);
+                    return;
+                }
+
+                // 等待人类输入事件：暂停等待指示器，显示输入框
+                if (data.type === "await_input") {
+                    setIsWaiting(false);
+                    setAwaitInputInstruction(data.instruction as string);
+                    return;
+                }
+
+                const msg = data as GameMessage;
+                enqueue(msg);
+            } catch {
+                // 忽略非 JSON 消息
+            }
         };
 
         ws.onclose = () => {
             setStatus("disconnected");
+            setIsRunning(false);
             setIsWaiting(false);
             setIsTyping(false);
+            setAwaitInputInstruction(null);
             if (typingIntervalRef.current) {
                 clearInterval(typingIntervalRef.current);
                 typingIntervalRef.current = null;
@@ -178,7 +179,7 @@ export function useGameSocket(): UseGameSocketReturn {
         ws.onerror = () => {
             ws.close();
         };
-    }, []); // 空依赖：connect 永不重建，WebSocket 连接稳定
+    }, [enqueue]);
 
     useEffect(() => {
         connect();
@@ -192,16 +193,33 @@ export function useGameSocket(): UseGameSocketReturn {
     useEffect(() => {
         if (!isRunning) return;
         if (isFlushingRef.current) return;
+        // flush 结束且游戏在跑 → 等待下一条消息
         const timer = setTimeout(() => {
-            if (!isFlushingRef.current && isRunning) setIsWaiting(true);
+            if (!isFlushingRef.current && isRunning) {
+                setIsWaiting(true);
+            }
         }, MSG_INTERVAL_MS);
         return () => clearTimeout(timer);
     }, [messages, isRunning]);
 
-    // ── 游戏控制 ─────────────────────────────────────────────────
-
     const startGame = useCallback(async (params: GameParams) => {
-        // 在 fetch 之前清空上一局状态
+        const query = new URLSearchParams({
+            player_num: String(params.player_num),
+            shuffle: String(params.shuffle),
+            use_reflection: String(params.use_reflection),
+            use_experience: String(params.use_experience),
+            add_human: String(params.add_human),
+        });
+
+        const res = await fetch(`${API_URL}/game/start?${query}`, {
+            method: "POST",
+        });
+
+        if (!res.ok) {
+            throw new Error(`启动失败：${res.status}`);
+        }
+
+        // 清空上一局状态
         queueRef.current = [];
         isFlushingRef.current = false;
         lastShownAtRef.current = 0;
@@ -213,48 +231,16 @@ export function useGameSocket(): UseGameSocketReturn {
         setIsWaiting(false);
         setIsTyping(false);
         setAwaitInputInstruction(null);
-
-        const query = new URLSearchParams({
-            player_num: String(params.player_num),
-            shuffle: String(params.shuffle),
-            use_reflection: String(params.use_reflection),
-            use_experience: String(params.use_experience),
-            add_human: String(params.add_human),
-        });
-
-        const res = await fetch(`${API_URL}/game/start?${query}`, { method: "POST" });
-        if (!res.ok) throw new Error(`启动失败：${res.status}`);
-
-        const body = await res.json() as { status: string; game_id?: string };
-        setCurrentGameId(body.game_id ?? null);
-        setViewingGameId(null);
-        // fetch 返回后不清 awaitInputInstruction / humanRole，避免覆盖已收到的事件
+        // humanRole 不在这里重置，由 player_info 事件设置，避免覆盖已收到的值
         setIsRunning(true);
     }, []);
 
+    // 发送人类玩家输入，通过 WebSocket 传给后端
     const sendInput = useCallback((text: string) => {
-        const ws = wsRef.current;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(text);
-            setAwaitInputInstruction(null);
-        } else {
-            console.warn("[sendInput] WebSocket not open, readyState:", ws?.readyState);
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(text);
+            setAwaitInputInstruction(null); // 关闭输入框
         }
-    }, []);
-
-    const viewGame = useCallback(async (gameId: string) => {
-        try {
-            const res = await fetch(`${API_URL}/games/${gameId}`);
-            if (!res.ok) return;
-            const msgs = await res.json() as GameMessage[];
-            setHistoryMessages(msgs);
-            setViewingGameId(gameId);
-        } catch { /* 静默失败 */ }
-    }, []);
-
-    const exitHistory = useCallback(() => {
-        setViewingGameId(null);
-        setHistoryMessages([]);
     }, []);
 
     const clearMessages = useCallback(() => {
@@ -273,7 +259,6 @@ export function useGameSocket(): UseGameSocketReturn {
     return {
         messages, status, isRunning, isWaiting, isTyping,
         awaitInputInstruction, humanRole,
-        currentGameId, historyMessages, viewingGameId,
-        startGame, sendInput, viewGame, exitHistory, clearMessages,
+        startGame, sendInput, clearMessages,
     };
 }

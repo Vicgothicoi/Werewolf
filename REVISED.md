@@ -8,6 +8,9 @@
 2.支持不同人数玩家（4-10）
 修改了流程控制、Prompt硬编码部分等
 
+3.新增WebUI
+同时保留了命令行直接输出的方式（在start_game.py中修改）
+
 ### 优化部分
 1.将记忆检索的query从REFLECTION变成HARD_FACTS  
 原因：项目真正想要的目标在于“找到相似局面，然后参考当时的决策和结果”，然而原先的REFLECTION有以下问题：  
@@ -23,7 +26,7 @@ B.推理过程和博弈结构往往并不对应得很好，更何况推断错误
 
 ### DEBUG（原代码中标有FIXME的地方）
 1.Moderator统计投票结果失误  
-原先统计最近N条信息，但是包含了自己的“Understood”这句，导致只统计到N-1票。并且用content[:10：]可能截断稍长的文本  
+投票结束时和Moderator说"Understood"时，计票了两次（好隐蔽的BUG，因为ParseSpeak不推进 step_idx）：  
 同时修正了Counter.most_common()的使用，该函数对相同计数的元素不保证顺序，因此不能实现“平票时，杀最先被投的”
 
 2.在线嵌入模型只支持OPENAI API
@@ -49,8 +52,6 @@ MCP；
 Skill 渐进式披露  
 本项目虽然使用了Function Calling，但是只是用来模拟Structured Output的功能，这是考虑到后者有一些模型并不支持 
 
-### 前后端
-基本完成
 
 
 

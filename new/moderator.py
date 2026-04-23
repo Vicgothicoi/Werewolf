@@ -184,7 +184,7 @@ class Moderator(Role):
 
     def _update_game_states(self, memories):
 
-        step_idx, abs_idx = self._get_current_step_idx()
+        step_idx, _ = self._get_current_step_idx()
         if step_idx not in [12, 14, 17, 19]:
             return
         # else:
@@ -202,6 +202,8 @@ class Moderator(Role):
             if self.player_hunted:
                 self.player_current_dead.append(self.player_hunted)
 
+            # print("更新状态：",self.step_idx,self.player_hunted)
+
             self.living_players = [
                 p for p in self.living_players if p not in self.player_current_dead
             ]
@@ -214,10 +216,12 @@ class Moderator(Role):
 
         elif step_idx == 17:
             # day ends: after all roles voted, process all votings
-            all_player_msgs = [m for m in memories if m.sent_from != "Moderator"]
-            voting_msgs = all_player_msgs[-len(self.living_players) :]
+            voting_msgs = memories[-(len(self.living_players) + 2) :]
+            print("投票消息：", type(voting_msgs), voting_msgs)
             voted_all = []
             for msg in voting_msgs:
+                if msg.sent_from == "Moderator":
+                    continue
                 voted = re.search(r"Player[0-9]+", msg.content)
                 if not voted:
                     continue
@@ -230,7 +234,6 @@ class Moderator(Role):
                 p for p in self.living_players if p not in self.player_current_dead
             ]
             self.update_player_status(self.player_current_dead)
-            self.step_idx = abs_idx + 1  # 立即推进，防止重复触发步骤17
 
         # game's termination condition
         living_werewolf = [p for p in self.werewolf_players if p in self.living_players]
@@ -252,17 +255,11 @@ class Moderator(Role):
             )
         if self.winner is not None:
             self._record_all_experiences()
-            try:
-                from werewolf_game.server import update_game_result
-
-                update_game_result(self.winner, self.win_reason)
-            except Exception:
-                pass
 
     def _record_game_history(self):
         if self.step_idx % len(STEP_INSTRUCTIONS) == 0 or self.winner is not None:
             logger.info("a night and day cycle completed, examine all history")
-            # print(self.get_all_memories())
+            print(self.get_all_memories())
             with open(WORKSPACE_ROOT / "werewolf_transcript.txt", "w") as f:
                 f.write(self.get_all_memories())
 
@@ -294,11 +291,11 @@ class Moderator(Role):
 
         memories = self.get_all_memories(mode="msg")
 
-        # 每一步结束，对上步骤的死者进行总结，并更新游戏状态
-        self._update_game_states(memories)
-
         # 若进行完一夜一日的循环，打印和记录一次完整发言历史
         self._record_game_history()
+
+        # 每一步结束，对上步骤的死者进行总结，并更新游戏状态
+        self._update_game_states(memories)
 
         # 根据_think的结果，执行InstructSpeak还是ParseSpeak, 并将结果返回
         if isinstance(todo, InstructSpeak):
@@ -335,6 +332,13 @@ class Moderator(Role):
                 sent_from=self.name,
                 cause_by=AnnounceGameResult,
             )
+            # 通知 server 更新 Redis 里的胜负记录
+            try:
+                from werewolf_game.server import update_game_result
+
+                update_game_result(self.winner, self.win_reason)
+            except Exception:
+                pass
 
         logger.info(f"{self._setting}: {msg_content}")
 

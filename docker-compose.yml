@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:latest
+    container_name: redis-server
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./workspace/werewolf_game/redis:/data
+    command: redis-server --appendonly yes --bind 0.0.0.0
+    environment:
+      - TZ=Asia/Shanghai
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M

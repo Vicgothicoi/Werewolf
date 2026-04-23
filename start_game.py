@@ -10,7 +10,7 @@ from werewolf_game.roles.human_player import prepare_human_player
 
 
 def init_game_setup(
-    player_num=5,
+    player_num=4,
     add_human=False,
     shuffle=True,
     use_reflection=True,
@@ -58,7 +58,7 @@ def init_game_setup(
         # random.seed(100)
         random.shuffle(roles)
     if add_human:
-        assigned_role_idx = random.randint(0, len(roles) - 1)
+        assigned_role_idx = 0  # random.randint(0, len(roles) - 1)
         assigned_role = roles[assigned_role_idx]
         roles[assigned_role_idx] = prepare_human_player(assigned_role)
 
@@ -89,7 +89,7 @@ def init_game_setup(
 async def start_game(
     investment: float = 20.0,
     n_round: int = 100,
-    player_num: int = 5,
+    player_num: int = 4,
     add_human: bool = False,
     shuffle: bool = True,
     use_reflection: bool = True,
