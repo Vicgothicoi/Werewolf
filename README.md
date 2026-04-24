@@ -1,4 +1,4 @@
-# 基于多智能体的狼人杀游戏 (Werewolf Game Based on Multi-Agent)
+# 基于多智能体的狼人杀游戏 (Werewolf Game)
 
 基于 MetaGPT 框架的多智能体狼人杀游戏系统，支持 AI 角色自主推理、反思和经验学习
 
@@ -14,9 +14,9 @@
 - 👤 **人机混合模式**：支持人类玩家参与游戏
 - 📊 **游戏记录与分析**：自动记录游戏过程和统计数据
 
-## �️ WebUI
+## 🌐 WebUI
 
-现代化WebUI界面
+现代化界面
 
 ### 模式选择
 
@@ -54,13 +54,14 @@ cd <project-directory>
 
 2. **安装依赖**
 ```bash
-pip install -r requirements.txt
-```
-
-```bash
 cd frontend
 npm install
 ```
+
+```bash
+pip install -r requirements.txt
+```
+
 
 3. **配置 API**
 
@@ -95,7 +96,7 @@ npm run dev
 
 前端默认运行在 `http://localhost:3000`，后端 API 在 `http://localhost:8000`。
 
-在浏览器中打开前端页面，点击"开始游戏"即可，支持通过界面选择是否加入人类玩家和其它参数。
+在浏览器中打开前端页面，点击"开始游戏"即可，支持通过界面选择是否加入人类玩家等。
 
 ### 参数说明
 
@@ -123,17 +124,16 @@ npm run dev
                            │  WebSocket (/ws)  &  HTTP REST
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    FastAPI 后端服务                               │
+│                    FastAPI 后端服务                              │
 │              werewolf_game/server.py  (port 8000)               │
 │  • /game/start  启动对局                                         │
 │  • /games       历史对局列表                                     │
-│  • /games/{id}  对局消息回放                                     │
 │  • /ws          实时消息推送 + 人类玩家输入                       │
 └──────────┬──────────────────────────────────┬───────────────────┘
            │  asyncio.create_task             │  aioredis
            ▼                                  ▼
 ┌──────────────────────────┐      ┌───────────────────────────────┐
-│     游戏引擎（核心）       │      │         Redis                 │
+│     游戏引擎（核心）      │      │         Redis                 │
 │  werewolf_game/          │      │  持久化对局消息 & meta         │
 │  ├── werewolf_game.py    │      │  (docker-compose, port 6379)  │
 │  ├── roles/              │      └───────────────────────────────┘
@@ -146,8 +146,8 @@ npm run dev
            │  LLM API 调用（OpenAI 兼容格式）
            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    MetaGPT 框架                                  │
-│  metagpt/  (Role / Action / Memory / Environment / LLM)        │
+│                    MetaGPT 框架                                 │
+│  metagpt/  (Role / Action / Memory / Environment / LLM)         │
 └──────────────────────────┬──────────────────────────────────────┘
                            │  HTTP / HTTPS
                            ▼
@@ -184,7 +184,7 @@ npm run dev
 - **Moderator**：控制游戏流程，宣布游戏结果
 
 
-## �📁 项目结构
+## 📁 项目结构
 
 ```
 werewolf_game/
