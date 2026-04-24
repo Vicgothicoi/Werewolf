@@ -161,22 +161,15 @@ def broadcast_await_input(instruction: str):
 
 async def wait_for_human_input(instruction: str) -> str:
     global _human_input_future
-    from metagpt.logs import logger
-
     loop = asyncio.get_event_loop()
     _human_input_future = loop.create_future()
-    logger.info(
-        f"[Server] wait_for_human_input: _clients={len(_clients)}, broadcasting await_input"
-    )
     await _broadcast_async(
         json.dumps(
             {"type": "await_input", "instruction": instruction}, ensure_ascii=False
         )
     )
-    logger.info(f"[Server] await_input broadcast done, waiting for future...")
     try:
         rsp = await _human_input_future
-        logger.info(f"[Server] future resolved: {rsp!r}")
     finally:
         _human_input_future = None
     return rsp

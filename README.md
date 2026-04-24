@@ -1,6 +1,6 @@
-# 狼人杀 AI 游戏 (Werewolf Game AI)
+# 基于多智能体的狼人杀游戏 (Werewolf Game Based on Multi-Agent)
 
-基于 MetaGPT 框架的多智能体狼人杀游戏系统，支持 AI 角色自主推理、反思和经验学习。
+基于 MetaGPT 框架的多智能体狼人杀游戏系统，支持 AI 角色自主推理、反思和经验学习
 
 ## 📖 项目简介
 
@@ -13,6 +13,160 @@
 - 🧠 **反思与学习**：AI 玩家能够反思游戏过程并从历史经验中学习
 - 👤 **人机混合模式**：支持人类玩家参与游戏
 - 📊 **游戏记录与分析**：自动记录游戏过程和统计数据
+
+## �️ WebUI
+
+现代化WebUI界面
+
+### 模式选择
+
+**观战模式**（显示所有玩家信息，包括身份和夜间行动）
+
+![观战模式](view1.png)
+
+**玩家模式**（仅显示与自己角色相关的信息，隐藏其他玩家身份）
+
+![玩家模式](view2.png)
+
+### 功能说明
+
+- **观战模式**：以上帝视角观看完整对局，所有角色身份、夜间行动、私密消息均可见
+- **玩家模式**：以指定角色身份参与游戏，只接收属于自己的信息，不泄露其他玩家身份
+- **历史回放**：UI左侧边栏查看历史对局列表，支持回放任意一局的完整消息记录
+- **实时推送**：游戏消息通过 WebSocket 实时推送到前端
+
+---
+
+## �🚀 快速开始
+
+### 环境要求
+
+- Python 3.10.15
+- 支持 OpenAI API 格式的 LLM 服务
+
+### 安装步骤
+
+1. **克隆项目**
+```bash
+git clone https://github.com/Vicgothicoi/Werewolf.git
+cd <project-directory>
+```
+
+2. **安装依赖**
+```bash
+pip install -r requirements.txt
+```
+
+```bash
+cd frontend
+npm install
+```
+
+3. **配置 API**
+
+复制配置示例文件并填入你的 API 信息：
+```bash
+cp config/config_example.yaml config/config.yaml
+```
+
+编辑 `config/config.yaml`：
+```yaml
+OPENAI_API_BASE: "YOUR_API_URL"
+OPENAI_API_KEY: "YOUR_API_KEY"
+OPENAI_API_MODEL: "YOUR_MODEL_NAME"
+```
+
+### 运行游戏
+
+1. **启动 Redis**（用于持久化对局记录）
+```bash
+docker-compose up -d
+```
+
+2. **启动后端服务**
+```bash
+python start_game.py
+```
+
+3. **启动前端**
+```bash
+npm run dev
+```
+
+前端默认运行在 `http://localhost:3000`，后端 API 在 `http://localhost:8000`。
+
+在浏览器中打开前端页面，点击"开始游戏"即可，支持通过界面选择是否加入人类玩家和其它参数。
+
+### 参数说明
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `player_num` | int | 5 | 玩家数量（4-10） |
+| `n_round` | int | 100 | 最大游戏回合数 |
+| `investment` | float | 20.0 | 游戏投资（控制 LLM 调用预算） |
+| `add_human` | bool | False | 是否添加人类玩家 |
+| `shuffle` | bool | False | 是否随机分配角色 |
+| `use_reflection` | bool | True | 是否启用反思机制 |
+| `use_experience` | bool | False | 是否使用历史经验 |
+| `use_memory_selection` | bool | False | 是否启用记忆选择 |
+| `new_experience_version` | str | "" | 新经验版本标识 |
+
+
+## �️ 技术栈
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         浏览器 / 用户                            │
+│              React 18 + TypeScript + Tailwind CSS               │
+│                    (frontend/src/, port 3000)                   │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  WebSocket (/ws)  &  HTTP REST
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    FastAPI 后端服务                               │
+│              werewolf_game/server.py  (port 8000)               │
+│  • /game/start  启动对局                                         │
+│  • /games       历史对局列表                                     │
+│  • /games/{id}  对局消息回放                                     │
+│  • /ws          实时消息推送 + 人类玩家输入                       │
+└──────────┬──────────────────────────────────┬───────────────────┘
+           │  asyncio.create_task             │  aioredis
+           ▼                                  ▼
+┌──────────────────────────┐      ┌───────────────────────────────┐
+│     游戏引擎（核心）       │      │         Redis                 │
+│  werewolf_game/          │      │  持久化对局消息 & meta         │
+│  ├── werewolf_game.py    │      │  (docker-compose, port 6379)  │
+│  ├── roles/              │      └───────────────────────────────┘
+│  │   ├── moderator.py    │
+│  │   ├── base_player.py  │
+│  │   └── (各角色)        │
+│  └── actions/            │
+│      └── (各动作)        │
+└──────────┬───────────────┘
+           │  LLM API 调用（OpenAI 兼容格式）
+           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    MetaGPT 框架                                  │
+│  metagpt/  (Role / Action / Memory / Environment / LLM)        │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  HTTP / HTTPS
+                           ▼
+                  ┌─────────────────┐
+                  │   LLM 服务      │
+                  │ (OpenAI / 兼容) │
+                  └─────────────────┘
+```
+
+| 层级 | 技术 | 说明 |
+|------|------|------|
+| 前端 | React 18 + TypeScript + Vite + Tailwind CSS | 实时对局界面，WebSocket 通信 |
+| 后端 | FastAPI + uvicorn | REST API + WebSocket 服务 |
+| 消息持久化 | Redis (aioredis) | 存储对局消息和元数据，支持历史回放 |
+| 游戏引擎 | Python (werewolf_game/) | 角色逻辑、流程控制、经验管理 |
+| 多智能体框架 | MetaGPT | Role / Action / Memory 抽象层 |
+| LLM | OpenAI API 兼容接口 | 驱动所有 AI 玩家的推理与决策 |
+
+
 
 ## 🎯 游戏角色
 
@@ -29,75 +183,8 @@
 ### 主持人
 - **Moderator**：控制游戏流程，宣布游戏结果
 
-## 🚀 快速开始
 
-### 环境要求
-
-- Python 3.10.15
-- 支持 OpenAI API 格式的 LLM 服务
-
-### 安装步骤
-
-1. **克隆项目**
-```bash
-git clone <repository-url>
-cd <project-directory>
-```
-
-2. **安装依赖**
-```bash
-pip install -r requirements.txt
-```
-
-3. **配置 API**
-
-复制配置示例文件并填入你的 API 信息：
-```bash
-cp config/config_example.yaml config/config.yaml
-```
-
-编辑 `config/config.yaml`：
-```yaml
-OPENAI_API_BASE: "YOUR_API_URL"
-OPENAI_API_KEY: "YOUR_API_KEY"
-OPENAI_API_MODEL: "YOUR_MODEL_NAME"
-MAX_TOKENS: 1000
-RPM: 30
-TIMEOUT: 15
-```
-
-### 运行游戏
-
-**基础运行**
-```bash
-python start_game.py
-```
-
-**自定义参数**：
-```bash
-python start_game.py \
-  --player_num=5 \
-  --add_human: bool = False \
-  --use_reflection=True \
-  --use_experience=False \
-  --shuffle=True
-```
-
-### 参数说明
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `player_num` | int | 5 | 玩家数量（4-10） |
-| `n_round` | int | 100 | 最大游戏回合数 |
-| `investment` | float | 20.0 | 游戏投资（控制 LLM 调用预算） |
-| `add_human` | bool | False | 是否添加人类玩家 |
-| `shuffle` | bool | False | 是否随机分配角色 |
-| `use_reflection` | bool | True | 是否启用反思机制 |
-| `use_experience` | bool | False | 是否使用历史经验 |
-| `use_memory_selection` | bool | False | 是否启用记忆选择 |
-| `new_experience_version` | str | "" | 新经验版本标识 |
-
-## 📁 项目结构
+## �📁 项目结构
 
 ```
 werewolf_game/
@@ -120,11 +207,8 @@ werewolf_game/
 │   ├── hunter.py              # 猎人
 │   ├── guard.py               # 守卫
 │   └── human_player.py        # 人类玩家接口
-├── evals/                      # 评估脚本
-├── tests/                      # 测试文件
 ├── schema.py                   # 数据模型定义
-├── werewolf_game.py           # 游戏主类
-└── Game.txt                    # 游戏记录示例
+└── werewolf_game.py           # 游戏主类
 ```
 
 ## 🎮 游戏流程

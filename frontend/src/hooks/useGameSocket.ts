@@ -4,8 +4,8 @@ import type { GameParams } from "../components/GameControls";
 
 const WS_URL = "ws://localhost:8000/ws";
 const API_URL = "http://localhost:8000";
-const MSG_INTERVAL_MS = 2000;
-const TYPING_SPEED_MS = 30;
+const MSG_INTERVAL_MS = 500;
+const TYPING_SPEED_MS = 20;
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
@@ -129,8 +129,16 @@ export function useGameSocket(): UseGameSocketReturn {
                 }
 
                 if (data.type === "await_input") {
-                    setIsWaiting(false);
-                    setAwaitInputInstruction(data.instruction as string);
+                    const instruction = data.instruction as string;
+                    const waitForFlush = () => {
+                        if (isFlushingRef.current || typingIntervalRef.current) {
+                            setTimeout(waitForFlush, 200);
+                        } else {
+                            setIsWaiting(false);
+                            setAwaitInputInstruction(instruction);
+                        }
+                    };
+                    waitForFlush();
                     return;
                 }
 
@@ -237,8 +245,6 @@ export function useGameSocket(): UseGameSocketReturn {
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(text);
             setAwaitInputInstruction(null);
-        } else {
-            console.warn("[sendInput] WebSocket not open, readyState:", ws?.readyState);
         }
     }, []);
 

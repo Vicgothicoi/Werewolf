@@ -16,7 +16,6 @@ export default function HumanInput({ instruction, onSubmit }: Props) {
 
     const handleSubmit = () => {
         const trimmed = text.trim();
-        console.log('[HumanInput] handleSubmit, text:', JSON.stringify(text), 'trimmed:', JSON.stringify(trimmed));
         if (!trimmed) return;
         onSubmit(trimmed);
         setText("");
