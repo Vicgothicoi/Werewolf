@@ -324,7 +324,8 @@ class Reflect(Action):
     {
     "BACKGROUND": "It's a Werewolf game. __game_setup__ You are __profile__. Note that villager, seer, hunter and witch are all in villager side, they have the same objective. Werewolves can collectively kill ONE player at night."
     ,"HISTORY": "You have knowledge to the following conversation: __context__"
-    ,"MODERATOR_INSTRUCTION": __latest_instruction__,
+    ,"MODERATOR_INSTRUCTION": __latest_instruction__
+    ,"STRATEGY": "__strategy__"
     ,"OUTPUT_FORMAT" (a json):
         {
         "ROLE": "Your role, in this case, __profile__"
@@ -347,7 +348,6 @@ class Reflect(Action):
                             ,...
                             ,"GAME_STATE_SUMMARIZATION": "summarize the current situation from your standpoint in one sentence, your summarization should catch the most important information from your reflection, such as conflicts, number of living werewolves, special roles, and villagers."
                        }"
-        ,"STRATEGY": "__strategy__"
         }
     }
     """
