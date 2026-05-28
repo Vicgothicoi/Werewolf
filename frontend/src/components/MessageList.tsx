@@ -27,9 +27,10 @@ interface Props {
     isWaiting: boolean;
     isTyping: boolean;
     humanRole?: string | null;
+    humanName?: string | null;
 }
 
-export default function MessageList({ messages, isWaiting, isTyping, humanRole = null }: Props) {
+export default function MessageList({ messages, isWaiting, isTyping, humanRole = null, humanName = null }: Props) {
     const bottomRef = useRef<HTMLDivElement>(null);
 
     // 新消息到来时自动滚动到底部
@@ -73,6 +74,7 @@ export default function MessageList({ messages, isWaiting, isTyping, humanRole =
                 message={msg}
                 isTyping={isTyping && idx === messages.length - 1}
                 humanRole={humanRole}
+                humanName={humanName}
             />
         );
     });

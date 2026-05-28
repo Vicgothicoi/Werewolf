@@ -69,25 +69,29 @@ function getAvatarLabel(sentFrom: string): string {
 interface Props {
     message: GameMessage;
     isTyping?: boolean;
-    humanRole?: string | null; // 人类玩家的 role，非 null 时隐藏其他玩家真实身份
+    humanRole?: string | null;
+    humanName?: string | null;
 }
 
-export default function MessageBubble({ message, isTyping = false, humanRole = null }: Props) {
+export default function MessageBubble({ message, isTyping = false, humanRole = null, humanName = null }: Props) {
     const { sent_from, role, content, restricted_to } = message;
     const isPrivate = restricted_to !== "";
-    const isHumanPlayer = humanRole !== null && role === humanRole;
     const isModerator = MODERATOR_ROLES.includes(role);
 
-    // 非主持人、非人类玩家自己 → 隐藏真实身份
-    const displayRole = (humanRole && !isHumanPlayer && !isModerator) ? "???" : role;
-    const style = getRoleStyle(isHumanPlayer || isModerator ? role : "Unknown");
+    // 是自己发的消息
+    const isSelf = humanName !== null && sent_from === humanName;
+    // 是队友（仅狼人阵营，人类玩家是狼人时才显示其他狼人身份）
+    const isAlly = humanRole === "Werewolf" && role === "Werewolf";
+
+    // 显示真实身份的条件：主持人 / 自己 / 狼人队友
+    const showRealRole = isModerator || isSelf || isAlly || humanRole === null;
+    const displayRole = showRealRole ? role : "???";
+    const style = getRoleStyle(showRealRole ? role : "Unknown");
     const displayContent = stripTimestamp(content);
     const avatarLabel = getAvatarLabel(sent_from || role);
 
-    // 头像：人类玩家和主持人显示真实图片，其他玩家显示问号头像
-    const avatarSrc = (isHumanPlayer || isModerator || !humanRole)
-        ? AVATAR_MAP[role]
-        : "/avatars/unknown.jpg";
+    // 头像：显示真实身份时用角色图片，否则问号头像
+    const avatarSrc = showRealRole ? AVATAR_MAP[role] : "/avatars/unknown.jpg";
 
     // 图片加载失败时回退到纯色文字头像
     const [imgFailed, setImgFailed] = useState(false);

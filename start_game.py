@@ -5,7 +5,7 @@ import random
 
 from metagpt.logs import logger
 from werewolf_game.werewolf_game import WerewolfGame
-from werewolf_game.roles import Moderator, Villager, Werewolf, Seer, Witch, Hunter
+from werewolf_game.roles import Moderator, Villager, Werewolf, Seer, Witch, Hunter, Guard
 from werewolf_game.roles.human_player import prepare_human_player
 
 

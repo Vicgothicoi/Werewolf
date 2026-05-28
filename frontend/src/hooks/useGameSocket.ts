@@ -17,6 +17,7 @@ interface UseGameSocketReturn {
     isTyping: boolean;
     awaitInputInstruction: string | null;
     humanRole: string | null;
+    humanName: string | null;
     currentGameId: string | null;
     historyMessages: GameMessage[];
     viewingGameId: string | null;
@@ -35,6 +36,7 @@ export function useGameSocket(): UseGameSocketReturn {
     const [isTyping, setIsTyping] = useState(false);
     const [awaitInputInstruction, setAwaitInputInstruction] = useState<string | null>(null);
     const [humanRole, setHumanRole] = useState<string | null>(null);
+    const [humanName, setHumanName] = useState<string | null>(null);
     const [currentGameId, setCurrentGameId] = useState<string | null>(null);
     const [historyMessages, setHistoryMessages] = useState<GameMessage[]>([]);
     const [viewingGameId, setViewingGameId] = useState<string | null>(null);
@@ -117,6 +119,7 @@ export function useGameSocket(): UseGameSocketReturn {
                             setIsWaiting(false);
                             setAwaitInputInstruction(null);
                             setHumanRole(null);
+                            setHumanName(null);
                         }
                     };
                     waitForFlush();
@@ -125,6 +128,7 @@ export function useGameSocket(): UseGameSocketReturn {
 
                 if (data.type === "player_info") {
                     setHumanRole(data.profile as string);
+                    setHumanName(data.name as string);
                     return;
                 }
 
@@ -278,7 +282,7 @@ export function useGameSocket(): UseGameSocketReturn {
 
     return {
         messages, status, isRunning, isWaiting, isTyping,
-        awaitInputInstruction, humanRole,
+        awaitInputInstruction, humanRole, humanName,
         currentGameId, historyMessages, viewingGameId,
         startGame, sendInput, viewGame, exitHistory, clearMessages,
     };

@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function App() {
     const {
         messages, status, isRunning, isWaiting, isTyping,
-        awaitInputInstruction, humanRole,
+        awaitInputInstruction, humanRole, humanName,
         currentGameId, historyMessages, viewingGameId,
         startGame, sendInput, viewGame, exitHistory,
     } = useGameSocket();
@@ -80,6 +80,7 @@ export default function App() {
                         isWaiting={!viewingGameId && isWaiting && !awaitInputInstruction}
                         isTyping={!viewingGameId && isTyping}
                         humanRole={humanRole}
+                        humanName={humanName}
                     />
 
                     {/* 历史查看模式不显示控制栏 */}

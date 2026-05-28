@@ -5,3 +5,4 @@ from werewolf_game.roles.werewolf import Werewolf
 from werewolf_game.roles.hunter import Hunter
 from werewolf_game.roles.seer import Seer
 from werewolf_game.roles.witch import Witch
+from werewolf_game.roles.guard import Guard
