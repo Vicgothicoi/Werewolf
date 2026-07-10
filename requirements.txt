@@ -20,4 +20,4 @@ langchain==0.0.231
 faiss-cpu==1.7.4
 python-docx==0.8.11
 beautifulsoup4==4.15.0
-pamdas
+pandas
