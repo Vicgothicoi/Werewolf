@@ -5,8 +5,7 @@ import GameControls from "./components/GameControls";
 import HumanInput from "./components/HumanInput";
 import GameSidebar from "./components/GameSidebar";
 import type { GameParams } from "./components/GameControls";
-
-const API_URL = "http://localhost:8000";
+import { apiUrl } from "./api";
 
 const STATUS_DOT: Record<string, string> = {
     connected: "bg-green-400",
@@ -31,7 +30,7 @@ export default function App() {
     const [historyEnabled, setHistoryEnabled] = useState(false);
 
     useEffect(() => {
-        fetch(`${API_URL}/health`)
+        fetch(apiUrl("/health"))
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => setHistoryEnabled(data?.redis === true))
             .catch(() => setHistoryEnabled(false));

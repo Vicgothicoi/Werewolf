@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { apiUrl, wsUrl } from "../api";
 import type { GameMessage } from "../types";
 import type { GameParams } from "../components/GameControls";
-
-const WS_URL = "ws://localhost:8000/ws";
-const API_URL = "http://localhost:8000";
 const MSG_INTERVAL_MS = 500;
 const TYPING_SPEED_MS = 20;
 
@@ -159,7 +157,7 @@ export function useGameSocket(): UseGameSocketReturn {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
         setStatus("connecting");
-        const ws = new WebSocket(WS_URL);
+        const ws = new WebSocket(wsUrl());
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -234,7 +232,7 @@ export function useGameSocket(): UseGameSocketReturn {
             add_human: String(params.add_human),
         });
 
-        const res = await fetch(`${API_URL}/game/start?${query}`, { method: "POST" });
+        const res = await fetch(apiUrl(`/game/start?${query}`), { method: "POST" });
         if (!res.ok) throw new Error(`启动失败：${res.status}`);
 
         const body = await res.json() as { status: string; game_id?: string };
@@ -254,7 +252,7 @@ export function useGameSocket(): UseGameSocketReturn {
 
     const viewGame = useCallback(async (gameId: string) => {
         try {
-            const res = await fetch(`${API_URL}/games/${gameId}`);
+            const res = await fetch(apiUrl(`/games/${gameId}`));
             if (!res.ok) return;
             const msgs = await res.json() as GameMessage[];
             setHistoryMessages(msgs);

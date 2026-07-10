@@ -10,7 +10,6 @@ MAX_TOKENS: 1000
 RPM: 30
 TIMEOUT: 15 # Timeout for llm invocation
 #OPENAI_PROXY: "socks5h://127.0.0.1:7890" # 你的本地代理，翻墙用 
-#DEFAULT_PROVIDER: openai
 
 #### Embedding（阿里云百炼，OpenAI 兼容接口）
 EMBEDDING_API_BASE: "https://ws-rvu8x2d6v1w3u04j.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"

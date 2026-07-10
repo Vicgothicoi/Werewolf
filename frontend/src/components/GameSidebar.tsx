@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-const API_URL = "http://localhost:8000";
+import { apiUrl } from "../api";
 
 interface GameMeta {
     game_id: string;
@@ -44,7 +43,7 @@ export default function GameSidebar({
     const fetchGames = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/games`);
+            const res = await fetch(apiUrl("/games"));
             if (res.ok) setGames(await res.json());
         } catch {
             // Redis 未启动时静默失败
