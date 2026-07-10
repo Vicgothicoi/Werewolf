@@ -162,6 +162,6 @@ if __name__ == "__main__":
         import werewolf_game.server as _srv
 
         _srv.IS_SERVER_MODE = True
-        uvicorn.run("werewolf_game.server:app", host="0.0.0.0", port=8000, reload=False)
+        uvicorn.run("werewolf_game.server:app", host="127.0.0.1", port=8000, reload=False)
     else:
         fire.Fire(main)
