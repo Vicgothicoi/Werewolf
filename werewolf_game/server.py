@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import uuid
 from datetime import datetime
 
@@ -36,11 +37,40 @@ _current_game_meta: dict = {}  # 当前局的 meta 信息（胜负、人数等�
 REDIS_URL = "redis://localhost:6379"
 GAME_INDEX_KEY = "werewolf:game_index"  # List，按时间顺序存所有 game_id
 
+logger = logging.getLogger(__name__)
+
+
+async def _connect_redis() -> aioredis.Redis | None:
+    try:
+        client = aioredis.from_url(
+            REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=2,
+        )
+        await client.ping()
+        logger.info("Redis connected, history replay enabled")
+        return client
+    except Exception as exc:
+        logger.info("Redis unavailable, history replay disabled: %s", exc)
+        return None
+
+
+async def _disable_redis(reason: str):
+    global _redis
+    if _redis is None:
+        return
+    try:
+        await _redis.aclose()
+    except Exception:
+        pass
+    _redis = None
+    logger.warning("Redis disabled for this session: %s", reason)
+
 
 @app.on_event("startup")
 async def startup():
     global _redis
-    _redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+    _redis = await _connect_redis()
 
 
 @app.on_event("shutdown")
@@ -110,12 +140,7 @@ def broadcast(message: Message):
                 "content": message.content,
                 "restricted_to": message.restricted_to,
             }
-            loop.create_task(
-                _redis.rpush(
-                    _game_messages_key(_current_game_id),
-                    json.dumps(full_payload, ensure_ascii=False),
-                )
-            )
+            loop.create_task(_persist_message(full_payload))
     except RuntimeError:
         pass
 
@@ -132,14 +157,29 @@ def broadcast_game_over():
         pass
 
 
+async def _persist_message(payload: dict):
+    if not _redis or not _current_game_id:
+        return
+    try:
+        await _redis.rpush(
+            _game_messages_key(_current_game_id),
+            json.dumps(payload, ensure_ascii=False),
+        )
+    except Exception as exc:
+        await _disable_redis(str(exc))
+
+
 async def _save_game_meta():
     """把当前局 meta 写入 Redis，并追加到全局索引。"""
     if not _redis or not _current_game_id:
         return
-    # 逐字段写入，兼容旧版 Redis
-    for field, value in _current_game_meta.items():
-        await _redis.hset(_game_meta_key(_current_game_id), field, value)
-    await _redis.rpush(GAME_INDEX_KEY, _current_game_id)
+    try:
+        # 逐字段写入，兼容旧版 Redis
+        for field, value in _current_game_meta.items():
+            await _redis.hset(_game_meta_key(_current_game_id), field, value)
+        await _redis.rpush(GAME_INDEX_KEY, _current_game_id)
+    except Exception as exc:
+        await _disable_redis(str(exc))
 
 
 def update_game_result(winner: str, win_reason: str):
@@ -212,6 +252,11 @@ async def websocket_endpoint(ws: WebSocket):
 # ── HTTP 端点 ─────────────────────────────────────────────────────
 
 
+@app.get("/health")
+async def health():
+    return {"redis": _redis is not None}
+
+
 @app.post("/game/start")
 async def start_game_endpoint(
     player_num: int = 5,
@@ -257,14 +302,18 @@ async def list_games():
     """返回历史对局列表（最新的在前）。"""
     if not _redis:
         return []
-    game_ids = await _redis.lrange(GAME_INDEX_KEY, 0, -1)
-    game_ids = list(reversed(game_ids))  # 最新的在前
-    result = []
-    for gid in game_ids:
-        meta = await _redis.hgetall(_game_meta_key(gid))
-        if meta:
-            result.append(meta)
-    return result
+    try:
+        game_ids = await _redis.lrange(GAME_INDEX_KEY, 0, -1)
+        game_ids = list(reversed(game_ids))  # 最新的在前
+        result = []
+        for gid in game_ids:
+            meta = await _redis.hgetall(_game_meta_key(gid))
+            if meta:
+                result.append(meta)
+        return result
+    except Exception as exc:
+        await _disable_redis(str(exc))
+        return []
 
 
 @app.get("/games/{game_id}")
@@ -272,5 +321,9 @@ async def get_game(game_id: str):
     """返回指定对局的所有消息。"""
     if not _redis:
         return []
-    raw_messages = await _redis.lrange(_game_messages_key(game_id), 0, -1)
-    return [json.loads(m) for m in raw_messages]
+    try:
+        raw_messages = await _redis.lrange(_game_messages_key(game_id), 0, -1)
+        return [json.loads(m) for m in raw_messages]
+    except Exception as exc:
+        await _disable_redis(str(exc))
+        return []

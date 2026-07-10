@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import { useGameSocket } from "./hooks/useGameSocket";
 import MessageList from "./components/MessageList";
 import GameControls from "./components/GameControls";
 import HumanInput from "./components/HumanInput";
 import GameSidebar from "./components/GameSidebar";
 import type { GameParams } from "./components/GameControls";
+
+const API_URL = "http://localhost:8000";
 
 const STATUS_DOT: Record<string, string> = {
     connected: "bg-green-400",
@@ -25,6 +28,21 @@ export default function App() {
         startGame, sendInput, viewGame, exitHistory,
     } = useGameSocket();
 
+    const [historyEnabled, setHistoryEnabled] = useState(false);
+
+    useEffect(() => {
+        fetch(`${API_URL}/health`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => setHistoryEnabled(data?.redis === true))
+            .catch(() => setHistoryEnabled(false));
+    }, []);
+
+    useEffect(() => {
+        if (!historyEnabled && viewingGameId) {
+            exitHistory();
+        }
+    }, [historyEnabled, viewingGameId, exitHistory]);
+
     const handleStart = async (params: GameParams) => {
         try {
             await startGame(params);
@@ -34,7 +52,8 @@ export default function App() {
     };
 
     // 历史查看模式下显示历史消息，否则显示实时消息
-    const displayMessages = viewingGameId ? historyMessages : messages;
+    const displayMessages = historyEnabled && viewingGameId ? historyMessages : messages;
+    const isViewingHistory = historyEnabled && !!viewingGameId;
 
     return (
         <div className="flex flex-col h-screen bg-gray-50">
@@ -43,7 +62,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                     <span className="text-xl">🐺</span>
                     <h1 className="text-base font-semibold text-gray-900">
-                        {viewingGameId
+                        {isViewingHistory
                             ? `历史对局 #${viewingGameId}`
                             : humanRole
                                 ? `狼人杀 · ${humanRole}`
@@ -54,7 +73,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
                     <span className="text-xs text-gray-500">{STATUS_LABEL[status]}</span>
-                    {isRunning && !viewingGameId && (
+                    {isRunning && !isViewingHistory && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
                             游戏进行中
                         </span>
@@ -64,27 +83,28 @@ export default function App() {
 
             {/* 主体：侧边栏 + 消息区 */}
             <div className="flex flex-1 min-h-0">
-                {/* 左侧历史对局侧边栏 */}
-                <GameSidebar
-                    currentGameId={currentGameId}
-                    viewingGameId={viewingGameId}
-                    onViewGame={viewGame}
-                    onExitHistory={exitHistory}
-                    isRunning={isRunning}
-                />
+                {historyEnabled && (
+                    <GameSidebar
+                        currentGameId={currentGameId}
+                        viewingGameId={viewingGameId}
+                        onViewGame={viewGame}
+                        onExitHistory={exitHistory}
+                        isRunning={isRunning}
+                    />
+                )}
 
                 {/* 右侧消息区 + 底部控制栏 */}
                 <div className="flex flex-col flex-1 min-w-0">
                     <MessageList
                         messages={displayMessages}
-                        isWaiting={!viewingGameId && isWaiting && !awaitInputInstruction}
-                        isTyping={!viewingGameId && isTyping}
+                        isWaiting={!isViewingHistory && isWaiting && !awaitInputInstruction}
+                        isTyping={!isViewingHistory && isTyping}
                         humanRole={humanRole}
                         humanName={humanName}
                     />
 
                     {/* 历史查看模式不显示控制栏 */}
-                    {!viewingGameId && (
+                    {!isViewingHistory && (
                         awaitInputInstruction ? (
                             <HumanInput
                                 instruction={awaitInputInstruction}
