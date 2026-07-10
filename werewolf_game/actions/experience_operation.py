@@ -1,39 +1,154 @@
 import json
 import os
 import glob
-
-# 强制离线模式，禁止 HuggingFace 尝试联网
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
+import ssl
+import threading
+import time
+import urllib.error
+import urllib.request
 
 import numpy as np
 import chromadb
-from sentence_transformers import SentenceTransformer
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from metagpt.actions import Action
+from metagpt.config import Config
 from metagpt.const import WORKSPACE_ROOT
 from metagpt.logs import logger
 from werewolf_game.schema import RoleExperience
 
-DEFAULT_COLLECTION_NAME = "role_reflection"  # FIXME: 使用本地模型，原先的在线模型不兼容其他API
+# 与本地 bge-m3 向量不兼容，切换在线 embedding 后需重建 ChromaDB collection
+DEFAULT_COLLECTION_NAME = "hard_facts_v4"
 
-# 使用本地 bge-m3 模型，离线加载（该模型较大，可以选择其他轻量模型）
-_EMBED_MODEL = SentenceTransformer("BAAI/bge-m3")
+_EMBED_BATCH_SIZE = 10  # text-embedding-v4 单次请求最多 10 条
+_EMBED_BATCH_DELAY = 0.3  # 连续请求间隔（秒），避免触发连接限流
+_embed_lock = threading.Lock()
+_ssl_context = ssl.create_default_context()
+
+
+def _get_embedding_config() -> tuple[str, str, str, int]:
+    config = Config()
+    api_base = config.embedding_api_base.rstrip("/")
+    api_key = config.embedding_api_key
+    model = config.embedding_model
+    dimensions = int(config.embedding_dimensions)
+    return api_base, api_key, model, dimensions
+
+
+@retry(
+    retry=retry_if_exception_type((urllib.error.URLError, RuntimeError, OSError)),
+    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
+def _call_embedding_api(batch: list[str]) -> list[list[float]]:
+    api_base, api_key, model, dimensions = _get_embedding_config()
+    url = f"{api_base}/embeddings"
+    body = json.dumps(
+        {
+            "model": model,
+            "input": batch,
+            "dimensions": dimensions,
+            "encoding_format": "float",
+        },
+        ensure_ascii=False,
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Connection": "close",
+        },
+        method="POST",
+    )
+    try:
+        with _embed_lock:
+            with urllib.request.urlopen(
+                req, timeout=60, context=_ssl_context
+            ) as resp:
+                data = json.loads(resp.read().decode())
+            time.sleep(_EMBED_BATCH_DELAY)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")
+        raise RuntimeError(f"Embedding API error {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Embedding API unreachable: {exc.reason}") from exc
+
+    items = sorted(data["data"], key=lambda item: item["index"])
+    return [item["embedding"] for item in items]
+
+
+def _normalize_vectors(vectors: list[list[float]]) -> list[list[float]]:
+    normalized = []
+    for vec in vectors:
+        arr = np.array(vec, dtype=float)
+        norm = np.linalg.norm(arr)
+        normalized.append((arr / norm).tolist() if norm > 0 else vec)
+    return normalized
 
 
 def _embed_texts(texts: list[str]) -> list[list[float]]:
-    """调用本地 bge-m3 对文本列表编码，返回归一化向量列表。"""
-    vectors = _EMBED_MODEL.encode(texts, normalize_embeddings=True)
-    return vectors.tolist()
+    """调用百炼 text-embedding-v4 对文本列表编码，返回 L2 归一化向量列表。"""
+    if not texts:
+        return []
+
+    all_vectors: list[list[float]] = []
+    for i in range(0, len(texts), _EMBED_BATCH_SIZE):
+        batch = texts[i : i + _EMBED_BATCH_SIZE]
+        all_vectors.extend(_call_embedding_api(batch))
+    return _normalize_vectors(all_vectors)
 
 
 # ChromaDB 自定义 embedding function 接口
-class _LocalEmbeddingFunction:
+class _ApiEmbeddingFunction:
     def __call__(self, input: list[str]) -> list[list[float]]:
         return _embed_texts(input)
 
 
-EMB_FN = _LocalEmbeddingFunction()
+EMB_FN = _ApiEmbeddingFunction()
+
+
+def _hard_facts_to_texts(hard_facts_str: str) -> list[str]:
+    try:
+        entries = json.loads(hard_facts_str)
+    except Exception:
+        entries = None
+
+    if not isinstance(entries, list) or not entries:
+        return [hard_facts_str]
+
+    return [
+        json.dumps({k: v for k, v in entry.items() if k != "TARGET"})
+        for entry in entries
+    ]
+
+
+def _average_vectors(vectors: list[list[float]]) -> list[float]:
+    if not vectors:
+        return []
+    if len(vectors) == 1:
+        return vectors[0]
+    return np.mean(vectors, axis=0).tolist()
+
+
+def embed_hard_facts_batch(hard_facts_list: list[str]) -> list[list[float]]:
+    """批量编码多条 hard_facts，合并 API 请求以减少连接次数。"""
+    if not hard_facts_list:
+        return []
+
+    grouped_texts: list[list[str]] = [_hard_facts_to_texts(item) for item in hard_facts_list]
+    flat_texts = [text for group in grouped_texts for text in group]
+    flat_vectors = _embed_texts(flat_texts)
+
+    embeddings: list[list[float]] = []
+    cursor = 0
+    for texts in grouped_texts:
+        group_vectors = flat_vectors[cursor : cursor + len(texts)]
+        cursor += len(texts)
+        embeddings.append(_average_vectors(group_vectors))
+    return embeddings
 
 
 def embed_hard_facts(hard_facts_str: str) -> list[float]:
@@ -45,24 +160,7 @@ def embed_hard_facts(hard_facts_str: str) -> list[float]:
     Returns:
         list[float]: 平均池化后的embedding向量
     """
-    try:
-        entries = json.loads(hard_facts_str)
-    except Exception:
-        entries = None
-
-    if not isinstance(entries, list) or not entries:
-        return EMB_FN([hard_facts_str])[0]
-
-    # 去掉TARGET（玩家名），每条独立序列化为文本
-    texts = [
-        json.dumps({k: v for k, v in entry.items() if k != "TARGET"})
-        for entry in entries
-    ]
-
-    vectors = EMB_FN(texts)  # list[list[float]]
-
-    avg_vector = np.mean(vectors, axis=0).tolist()
-    return avg_vector
+    return embed_hard_facts_batch([hard_facts_str])[0]
 
 
 class AddNewExperiences(Action):
@@ -101,17 +199,22 @@ class AddNewExperiences(Action):
         ids = [exp.id for exp in experiences]
 
         # 对每条经验的hard_facts独立编码后平均池化，消除玩家顺序影响
-        embeddings = [embed_hard_facts(exp.hard_facts) for exp in experiences]
-        documents = [exp.hard_facts for exp in experiences]  # 保留原文供调试
-        metadatas = [exp.dict() for exp in experiences]
-
-        # 存入本地JSON文件，只是备用
         AddNewExperiences._record_experiences_local(experiences)
 
-        # embeddings：手动传入向量，跳过ChromaDB自动embedding；documents仅作备份存储
-        self.collection.add(
-            embeddings=embeddings, documents=documents, metadatas=metadatas, ids=ids
-        )
+        try:
+            embeddings = embed_hard_facts_batch([exp.hard_facts for exp in experiences])
+            documents = [exp.hard_facts for exp in experiences]  # 保留原文供调试
+            metadatas = [exp.dict() for exp in experiences]
+
+            # embeddings：手动传入向量，跳过ChromaDB自动embedding；documents仅作备份存储
+            self.collection.add(
+                embeddings=embeddings, documents=documents, metadatas=metadatas, ids=ids
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to persist experiences to ChromaDB (local JSON backup kept): %s",
+                exc,
+            )
 
     def add_from_file(self, file_path):
         with open(file_path, "r") as fl:
@@ -200,7 +303,11 @@ class RetrieveExperiences(Action):
             }
 
         # 对query的hard_facts独立编码后平均池化，与存储时保持一致
-        query_embedding = embed_hard_facts(query)
+        try:
+            query_embedding = embed_hard_facts(query)
+        except Exception as exc:
+            logger.warning("Failed to embed query for experience retrieval: %s", exc)
+            return ""
 
         # 多取候选，留给后续两层过滤筛选
         results = self.collection.query(

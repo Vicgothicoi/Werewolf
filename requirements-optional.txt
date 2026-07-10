@@ -1,0 +1,19 @@
+# MetaGPT 原版附带、狼人杀运行不必需的可选依赖
+# 仅在需要对应功能时安装，例如网页搜索、浏览器自动化、其他向量库等
+
+aiofiles==25.1.0
+azure-storage==0.37.0
+datasets==5.0.0
+duckduckgo-search==8.1.1
+google-api-python-client==2.198.0
+lancedb==0.1.16
+meilisearch==0.21.0
+peft==0.19.1
+Pillow==9.5.0
+playwright==1.40.0
+pymilvus==3.0.0
+pyppeteer==2.0.0
+qdrant-client==1.18.0
+selenium==4.45.0
+semantic-kernel==1.44.0
+trl==1.7.1

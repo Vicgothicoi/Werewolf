@@ -174,9 +174,6 @@ metagpt/roles/idea_agent.py
 node_modules/
 training/
 REVISED.md
-TODO.md
-Game.txt
-requirements_old.txt
 
 
 

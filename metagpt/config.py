@@ -95,6 +95,14 @@ class Config(metaclass=Singleton):
 
         self.prompt_format = self._get("PROMPT_FORMAT", "markdown")
 
+        self.embedding_api_base = self._get(
+            "EMBEDDING_API_BASE",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
+        self.embedding_api_key = self._get("EMBEDDING_API_KEY", self.openai_api_key)
+        self.embedding_model = self._get("EMBEDDING_MODEL", "text-embedding-v4")
+        self.embedding_dimensions = self._get("EMBEDDING_DIMENSIONS", 1024)
+
     def _init_with_config_files_and_env(self, configs: dict, yaml_file):
         """Load from config/key.yaml, config/config.yaml, and env in decreasing order of priority"""
         configs.update(os.environ)
