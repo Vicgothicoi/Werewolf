@@ -41,7 +41,7 @@
 
 ### 环境要求
 
-- Python 3.10.15
+- Python 3.10
 - 支持 OpenAI API 格式的 LLM 服务
 
 ### 安装步骤
@@ -72,14 +72,13 @@ cp config/config_example.yaml config/config.yaml
 
 编辑 `config/config.yaml`：
 ```yaml
-OPENAI_API_BASE: "YOUR_API_URL"
 OPENAI_API_KEY: "YOUR_API_KEY"
-OPENAI_API_MODEL: "YOUR_MODEL_NAME"
+EMBEDDING_API_KEY: "YOUR_EMBEDDING_API_KEY"
 ```
 
 ### 运行游戏
 
-1. **启动 Redis**（用于持久化对局记录）
+1. **启动 Redis**（用于持久化对局记录，不启动也可以运行）
 ```bash
 docker-compose up -d
 ```
