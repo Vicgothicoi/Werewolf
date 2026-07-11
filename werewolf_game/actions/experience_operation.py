@@ -17,7 +17,7 @@ from metagpt.const import WORKSPACE_ROOT
 from metagpt.logs import logger
 from werewolf_game.schema import RoleExperience
 
-# 与本地 bge-m3 向量不兼容，切换在线 embedding 后需重建 ChromaDB collection
+# ChromaDB collection 不存在时会自动建库
 DEFAULT_COLLECTION_NAME = "hard_facts_v4"
 
 _EMBED_BATCH_SIZE = 10  # text-embedding-v4 单次请求最多 10 条
